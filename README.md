@@ -9,6 +9,8 @@ If you wish to contribute to the project with these new additions you may do tha
 
 Fork this repository and add your new functionality to the corresponding file (i.e. a new bond potential should be in BondPotentials.cuh).  
 Submit your extension as a pull request.  
+Please add your name to the list of contributors.  
+Notice that this repository has a MIT license. By contributing to it you are consenting to provide your code under this license.  
 
 ## Guidelines:  
 
@@ -22,3 +24,4 @@ Document your code and add it to the wiki if you wish. Inclusion of tests (at le
 See BondPotentials.cuh for an example extension.  
 
 
+## List of contributors:  
