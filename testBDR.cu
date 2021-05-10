@@ -7,7 +7,6 @@ using std::make_shared;
 using std::to_string;
 using namespace uammd;
 using namespace extensions;
-
 real norm2(real3 v){
   return (dot(v,v));
 }
@@ -56,6 +55,7 @@ void saveAngles(real4* dir, int nParticles, std::ofstream &file){
 
 void saveMSD(real4 *pos,std::vector<real4> &init, int nParticles,std::ofstream &file){
   // In 3D the mean square displacement must depend on time as MSD = 6*Dt*t
+  // All the particles must be initialized in the origin (0,0,0)
   file<<"# "<<"\n";
   fori(0,nParticles){
     real3 pi = make_real3(pos[i])-make_real3(init[i]);
@@ -64,16 +64,39 @@ void saveMSD(real4 *pos,std::vector<real4> &init, int nParticles,std::ofstream &
   }
 }
 
+struct inputParams {
+  int nParticles;
+  int nsteps;
+  int nsave;
+  real dt;
+  real r;
+  real viscosity;
+  real temperature;
+};
+
+#include"utils/InputFile.h"
+inputParams readData(std::shared_ptr<System> sys, std::string file){
+
+  inputParams par;
+  InputFile in(file, sys);
+  in.getOption("nParticles", InputFile::Required)>>par.nParticles;
+  in.getOption("nsteps", InputFile::Required)>>par.nsteps;
+  in.getOption("nsave", InputFile::Required)>>par.nsave;
+  in.getOption("dt", InputFile::Required)>>par.dt;
+  in.getOption("radius", InputFile::Required)>>par.r;
+  in.getOption("viscosity", InputFile::Required)>>par.viscosity;
+  in.getOption("temperature", InputFile::Required)>>par.temperature;
+  par.viscosity/=(8*M_PI);
+  return par;
+}
+   
+
 int main(int argc, char* argv[]){
 
   auto sys = make_shared<System>(argc,argv);
-  int nParticles = atoi(argv[1]);
-  int nsteps = atoi(argv[2]);
-  int nsave = atoi(argv[3]);
-  real dt = atof(argv[4]);
-  real r = atof(argv[5]);
-  real viscosity = atof(argv[6])/(8*M_PI);
-  real temperature = atof(argv[7]);
+
+  inputParams par = readData(sys,"Params.data");
+  int nParticles = par.nParticles;
   real lbox = sqrt(nParticles)*2;
   Box box(lbox);
   uint seed = std::time(NULL);
@@ -91,10 +114,10 @@ int main(int argc, char* argv[]){
 
   using integrator = BDR::BrownianRotation;
   integrator::Parameters brpar;
-  brpar.dt = dt;
-  brpar.viscosity = viscosity;
-  brpar.hydrodynamicRadius = r;
-  brpar.temperature = temperature;
+  brpar.dt = par.dt;
+  brpar.viscosity = par.viscosity;
+  brpar.hydrodynamicRadius = par.r;
+  brpar.temperature = par.temperature;
   auto br = std::make_shared<integrator>(pd, sys, brpar);
   
   std::ofstream fileang("angulos.out");
@@ -104,8 +127,8 @@ int main(int argc, char* argv[]){
   Timer tim;
   tim.tic();
 
-  fori(0,nsteps){  
-    if (i%nsave == 0){
+  fori(0,par.nsteps){  
+    if (i%par.nsave == 0){
       std::cout<<i<<std::endl;
       {
       auto dir = pd-> getDir(access::location::cpu, access::mode::read);
@@ -113,7 +136,7 @@ int main(int argc, char* argv[]){
       saveMSD(pos.begin(), initPos, nParticles,fileMSD);
       saveAngles(dir.begin(), nParticles, fileang);
       }
-      saveData(pd, nParticles, r, filepos);
+      //saveData(pd, nParticles, r, filepos);
     }
     br->forwardTime();
   }

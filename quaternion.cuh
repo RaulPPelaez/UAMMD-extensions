@@ -93,13 +93,13 @@ namespace uammd{
 	return basis;
       }
       
-      std::vector<real4> initOrientations(int nParticles, uint seed, std::string type){
+      std::vector<real4> initOrientations(int nParticles, uint seed, std::string option){
 	//Set the initial orientations of each particle
 	std::vector<real4> orientations(nParticles);
-	if (type=="aligned"){
+	if (option=="aligned"){
 	  //All the particles are aligned with the laboratory frame
 	  std::fill(orientations.begin(), orientations.end(),make_real4(1,0,0,0));
-	} else if (type=="random"){
+	} else if (option=="random"){
 	  // The quaternions are generated randomly uniformly distributed
 	  // http://refbase.cvc.uab.es/files/PIE2012.pdf
 	  Saru rng(seed);
@@ -112,13 +112,13 @@ namespace uammd{
 	    return make_real4(r2*cos(ang2),r1*sin(ang1),r1*cos(ang1),r2*sin(ang2));
 	  };
 	  std::generate(orientations.begin(), orientations.end(),randomQuaternion);
+	} else {
+	  System::log<System::ERROR>("[initOrientations] The initialization option %s is not valid", option.c_str());
+	  System::log<System::ERROR>("[initOrientations] Valid options: aligned and random");
+	  throw std::runtime_error("Invalid initialization option");
 	}
-	return orientations;
-      }      
-
-      std::vector<real4> initOrientations(int nParticles, std::string type){
-	uint seed = std::time(NULL);
-	return initOrientations(nParticles, seed, type);
+	  return orientations;
+      }
     }
   }
 }
