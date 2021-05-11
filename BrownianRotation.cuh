@@ -65,7 +65,7 @@ The orientations can be initialized with the function quaternion::initOrientatio
 Being:
   nParticles -> The number of particles in the system
   seed -> A seed for generating random numbers (if no seed provided it takes std::time(NULL))
-  option -> option for initialization:
+  type -> option for initialization:
          "Random" -> Random orientations uniformly distributed
 	 "aligned" -> All the particles are aligned with the laboratory frame
 
@@ -80,6 +80,7 @@ References:
 #include "Integrator/Integrator.cuh"
 #include <curand.h>
 #include <thrust/device_vector.h>
+#include"quaternion.cuh"
 namespace uammd{
   namespace extensions{
     namespace BDR{

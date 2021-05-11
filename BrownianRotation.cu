@@ -1,10 +1,6 @@
 // Brownian Dynamics with rotation Integrator definitions
-#include"quaternion.cuh"
-
 namespace uammd{
   namespace extensions{
-    using quaternion::prod;
-    using quaternion::rotVec2Quaternion;
     namespace BDR{
       
       BrownianRotation::BrownianRotation(shared_ptr<ParticleData> pd,
@@ -119,8 +115,8 @@ namespace uammd{
 	  real3 dWr = make_real3(rng.gf(0, stdr), rng.gf(0, stdr).x);
 	  real3 tor = make_real3(torque[i]);
 	  real3 dphi = Mr*dt*tor + dWr;
-	  real4 newDir = dir[i];
-	  dir[i] = prod(rotVec2Quaternion(dphi),newDir);	
+	  Quat newDir = dir[i];
+	  dir[i] = make_real4(rotVec2Quaternion(dphi)*newDir);	
 	}
       };
       

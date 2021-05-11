@@ -15,21 +15,19 @@ real norm(real3 v){
 }
    
 void saveData(std::shared_ptr<uammd::ParticleData> pd, int N, real r, std::ofstream &file){
-  using quaternion::getReferenceSystem;
   auto pos = pd -> getPos(access::location::cpu, access::mode::read);
   auto dir = pd -> getDir(access::location::cpu, access::mode::read);
   const int * index2id = pd->getIdOrderedIndices(access::location::cpu);
   auto save = [&](int id){
-    real a = dir[id].x;
-    real b = dir[id].y;
-    real c = dir[id].z;
-    real d = dir[id].w;
+    Quat diri = dir[id];
     real3 pi = make_real3(pos[id]);
-    std::vector<real3> referenceSystem = getReferenceSystem(dir[id]);
+    real3 vx = diri.getVx();
+    real3 vy = diri.getVy();
+    real3 vz = diri.getVz();
     file<<pi<<" "<<r<<" 0\n";
-    file<<pi+r*referenceSystem[0]<<" "<<r/5.0<<" 1\n";
-    file<<pi+r*referenceSystem[1]<<" "<<r/5.0<<" 1\n";
-    file<<pi+r*referenceSystem[2]<<" "<<r/5.0<<" 1\n";    
+    file<<pi+r*vx<<" "<<r/5.0<<" 1\n";
+    file<<pi+r*vy<<" "<<r/5.0<<" 1\n";
+    file<<pi+r*vz<<" "<<r/5.0<<" 1\n";    
   };
   file<<"#\n";
   std::for_each(index2id,index2id+pos.size(),save);
@@ -45,8 +43,9 @@ void saveAngles(real4* dir, int nParticles, std::ofstream &file){
   
   file<<"#\n";
   fori(0,nParticles){
-    real3 v3 = quaternion::getV3(dir[i]);    
-    real cang = v3.z/norm(v3); // We initialize all the MNP aligned with the z axis
+    Quat diri = dir[i];
+    real3 vz = diri.getVz();    
+    real cang = vz.z/norm(vz); // We initialize all the MNP aligned with the z axis
     if (cang>real(1.0)) cang = (real)1.0;
     else if (cang<real(-1.0)) cang = real (-1.0);
     file<<acos(cang)<<"\n";
@@ -103,7 +102,7 @@ int main(int argc, char* argv[]){
   sys -> rng().setSeed(seed);
   auto pd = make_shared<ParticleData>(nParticles,sys);
   auto initPos = initLattice(box.boxSize, nParticles, sc);
-  auto initDir = quaternion::initOrientations(nParticles,seed,"aligned");
+  auto initDir = initOrientations(nParticles,seed,"aligned");
   {
     auto pos = pd -> getPos(access::location::cpu, access::mode::write);
     auto dir = pd -> getDir(access::location::cpu, access::mode::write);
@@ -136,7 +135,7 @@ int main(int argc, char* argv[]){
       saveMSD(pos.begin(), initPos, nParticles,fileMSD);
       saveAngles(dir.begin(), nParticles, fileang);
       }
-      //saveData(pd, nParticles, r, filepos);
+      //saveData(pd, nParticles, par.r, filepos);
     }
     br->forwardTime();
   }

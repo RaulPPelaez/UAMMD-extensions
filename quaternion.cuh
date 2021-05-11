@@ -6,119 +6,202 @@ Notation:
    q(real4) - quaternion
  */
 
+#define QUATTR inline __host__ __device__
+
 namespace uammd{
   namespace extensions{
-    namespace quaternion{
+
+    class Quat{
+    public:
+
+      real n;
+      real3 v;
+
+      QUATTR Quat();
+      QUATTR Quat(real4 q);
+      QUATTR Quat(real n, real3 v);
+      QUATTR Quat(real n, real vx, real vy, real vz);
+
+      QUATTR Quat operator+(Quat q1);
+      QUATTR void operator+=(Quat q);
+      QUATTR Quat operator-(Quat q);
+      QUATTR void operator-=(Quat q);
+      QUATTR Quat operator*(Quat q);
+      QUATTR void operator*=(Quat q);
+      QUATTR Quat operator*(real scalar);
+      QUATTR void operator*=(real scalar);
+      QUATTR Quat operator/(real scalar);
+      QUATTR void operator/=(real scalar);
+      QUATTR void operator=(real4 q);
+
+      QUATTR real3 getVx(); //Returns the first vector of the reference system encoded by the quaternion
+      QUATTR real3 getVy(); //Returns the second vector of the reference system encoded by the quaternion
+      QUATTR real3 getVz(); //Returns the third vector of the reference system encoded by the quaternion
       
-      __host__ __device__ real4 make_quaternion(real n, real3 v){
-	return make_real4(n,v.x,v.y,v.z);
-      }
+    };
 
-      __host__ __device__ real3 getVector(real4 q){
-	// Returns the vectorial part of the quaternion
-	return make_real3(q.y, q.z, q.w);
-      }
+    QUATTR Quat::Quat(){
+      n = real(1.0);
+      v = real3();
+    }
+    
+    QUATTR Quat::Quat(real4 q){
+      n = q.x;
+      v.x = q.y;
+      v.y = q.z;
+      v.z = q.w;
+    }
+    
+    QUATTR Quat::Quat(real n, real3 v){
+    this->n = n;
+    this->v = v;
+    }
 
-      __host__ __device__ real4 rotVec2Quaternion(real3 vrot, real ang){
-	/* Returns the quaternion that encondes a rotation of ang radians 
+    QUATTR Quat::Quat(real n, real vx, real vy, real vz){
+      this -> n = n;
+      v.x = vx;
+      v.y = vy;
+      v.z = vz;	
+    }
+
+    QUATTR Quat Quat::operator+(Quat q){
+      return Quat(n+q.n,v+q.v);    
+    }
+
+    QUATTR void Quat::operator+=(Quat q){
+      n+=q.n;
+      v+=q.v;
+    }
+
+    QUATTR Quat Quat::operator-(Quat q){
+      return Quat(n-q.n,v-q.v);    
+    }
+
+    QUATTR void Quat::operator-=(Quat q){
+      n-=q.n;
+      v-=q.v;
+    }
+
+    QUATTR Quat Quat::operator*(Quat q){
+      /*
+	Product of two quaternions:
+	q3 = q1*q2 = (n1*n2 - v1*v2, n1*v2 + n2*v1 + v1 x v2)
+      */      
+      return Quat(n*q.n-dot(v,q.v),n*q.v+v*q.n+cross(v,q.v));    
+    }
+    
+    QUATTR void Quat::operator*=(Quat q){
+      n=n*q.n-dot(v,q.v);
+      v=n*q.v+v*q.n+cross(q.v,v);
+    }
+
+    QUATTR Quat Quat::operator*(real scalar){
+      return Quat(scalar*n,scalar*v);    
+    }
+
+    QUATTR void Quat::operator*=(real scalar){
+      n*=scalar;
+      v*=scalar;
+    }
+    
+    QUATTR Quat operator*(real scalar, Quat q){
+      return  Quat(scalar*q.n,scalar*q.v);    
+    }
+
+    QUATTR Quat Quat::operator/(real scalar){
+      return Quat(n/scalar,v/scalar);    
+    }
+    
+    QUATTR void Quat::operator/=(real scalar){
+      n/=scalar;
+      v/=scalar;
+    }
+    
+    QUATTR void Quat::operator=(real4 q){
+      n = q.x;
+      v.x = q.y;
+      v.y = q.z;
+      v.z = q.w;
+    }
+
+    QUATTR real3 Quat::getVx(){
+      real a = n;
+      real b = v.x;
+      real c = v.y;
+      real d = v.z;
+      return make_real3(a*a+b*b-c*c-d*d,2*(b*c+a*d),2*(b*d-a*c));
+    }
+
+    QUATTR real3 Quat::getVy(){
+      real a = n;
+      real b = v.x;
+      real c = v.y;
+      real d = v.z;
+      return make_real3(2*(b*c-a*d),a*a-b*b+c*c-d*d,2*(c*d+a*b));
+    }
+
+    QUATTR real3 Quat::getVz(){
+      real a = n;
+      real b = v.x;
+      real c = v.y;
+      real d = v.z;
+      return make_real3(2*(b*d+a*c),2*(c*d-a*b),a*a-b*b-c*c+d*d);  
+    }
+
+    QUATTR Quat rotVec2Quaternion(real3 vrot, real phi){
+      /* Returns the quaternion that encondes a rotation of ang radians 
 	   around the axis vrot 	 
-	   q = (cos(ang/2),vrot·sin(ang/2))
+	   q = (cos(phi/2),vrot·sin(phi/2))
 	*/
 	vrot*=rsqrt(dot(vrot,vrot)); // The rotation axis must be a unitary vector
-	real cang2, sang2;
-	real* cang2_ptr = &cang2;
-	real* sang2_ptr = &sang2;
-	sincos(ang*0.5,sang2_ptr,cang2_ptr);
-	real4 q = make_quaternion(cang2,sang2*vrot);
+	real cphi2, sphi2;
+	real* cphi2_ptr = &cphi2;
+	real* sphi2_ptr = &sphi2;
+	sincos(phi*0.5,sphi2_ptr,cphi2_ptr);
+	Quat q = Quat(cphi2,sphi2*vrot);
 	return q;
       }
 
-      __host__ __device__ real4 rotVec2Quaternion(real3 vrot){
-	// If no angle is given the rotation angle is the modulus of vrot
-	real ang = sqrt(dot(vrot,vrot));
-	return rotVec2Quaternion(vrot,ang);
-      }
-      
-      __host__ __device__ real4 prod (real4 q1, real4 q2){
-	/*
-	  Product of two quaternions:
-	  q3 = q1*q2 = (n1*n2 - v1*v2, n1*v2 + n2*v1 + v1 x v2)
-	*/      
-	real n1 = q1.x;
-	real n2 = q2.x;
-	real3 v1 = getVector(q1);
-	real3 v2 = getVector(q2);
-	
-	real n3 = n1*n2-dot(v1,v2);
-	real3 v3 = n1*v2 + n2*v1 + cross(v1,v2);
-	return make_quaternion(n3,v3);
+    QUATTR Quat rotVec2Quaternion(real3 vrot){
+      // If no angle is given the rotation angle is the modulus of vrot
+      real phi = sqrt(dot(vrot,vrot));
+      return rotVec2Quaternion(vrot,phi);
       }
 
-      __host__ __device__ real3 getV1(real4 q){
-	//Returns the first vector of the reference system encoded by the quaternion
-	real a = q.x;
-	real b = q.y;
-	real c = q.z;
-	real d = q.w;
-	return make_real3(a*a+b*b-c*c-d*d,2*(b*c+a*d),2*(b*d-a*c));
+    QUATTR real4 make_real4(Quat q){
+      real4 r4;
+      r4.x = q.n;
+      r4.y = q.v.x;
+      r4.z = q.v.y;
+      r4.w = q.v.z;
+      return r4;
+    }
+
+    std::vector<real4> initOrientations(int nParticles, uint seed, std::string option){
+      //Set the initial orientations of each particle
+      std::vector<real4> orientations(nParticles);
+      if (option=="aligned"){
+	//All the particles are aligned with the laboratory frame
+	std::fill(orientations.begin(), orientations.end(),uammd::make_real4(1,0,0,0));
+      } else if (option=="random"){
+	// The quaternions are generated randomly uniformly distributed
+	// http://refbase.cvc.uab.es/files/PIE2012.pdf
+	Saru rng(seed);
+	auto randomQuaternion = [&] (){
+	  real x0 = rng.f();
+	  real r1 = sqrt(1.0-x0);
+	  real r2 = sqrt(x0);
+	  real ang1 = 2*M_PI*rng.f();
+	  real ang2 = 2*M_PI*rng.f();
+	  return uammd::make_real4(r2*cos(ang2),r1*sin(ang1),r1*cos(ang1),r2*sin(ang2));
+	};
+	std::generate(orientations.begin(), orientations.end(),randomQuaternion);
+      } else {
+	System::log<System::ERROR>("[initOrientations] The initialization option %s is not valid", option.c_str());
+	System::log<System::ERROR>("[initOrientations] Valid options: aligned and random");
+	throw std::runtime_error("Invalid initialization option");
       }
-      
-      __host__ __device__ real3 getV2(real4 q){
-	//Returns the second vector of the reference system encoded by the quaternion
-	real a = q.x;
-	real b = q.y;
-	real c = q.z;
-	real d = q.w;
-	return make_real3(2*(b*c-a*d),a*a-b*b+c*c-d*d,2*(c*d+a*b));
-      }
-      __host__ __device__ real3 getV3(real4 q){
-	//Returns the third vector of the reference system encoded by the quaternion
-	real a = q.x;
-	real b = q.y;
-	real c = q.z;
-	real d = q.w;
-	return make_real3(2*(b*d+a*c),2*(c*d-a*b),a*a-b*b-c*c+d*d);  
-      }
-      
-      std::vector<real3> getReferenceSystem(real4 q){
-	//Returns the basis of the reference system encoded by the quaternion
-	real a = q.x;
-	real b = q.y;
-	real c = q.z;
-	real d = q.w;
-	std::vector<real3> basis(3);
-	basis[0] = make_real3(a*a+b*b-c*c-d*d,2*(b*c+a*d),2*(b*d-a*c));
-	basis[1] = make_real3(2*(b*c-a*d),a*a-b*b+c*c-d*d,2*(c*d+a*b));
-	basis[2] = make_real3(2*(b*d+a*c),2*(c*d-a*b),a*a-b*b-c*c+d*d);  
-	return basis;
-      }
-      
-      std::vector<real4> initOrientations(int nParticles, uint seed, std::string option){
-	//Set the initial orientations of each particle
-	std::vector<real4> orientations(nParticles);
-	if (option=="aligned"){
-	  //All the particles are aligned with the laboratory frame
-	  std::fill(orientations.begin(), orientations.end(),make_real4(1,0,0,0));
-	} else if (option=="random"){
-	  // The quaternions are generated randomly uniformly distributed
-	  // http://refbase.cvc.uab.es/files/PIE2012.pdf
-	  Saru rng(seed);
-	  auto randomQuaternion = [&] (){
-	    real x0 = rng.f();
-	    real r1 = sqrt(1.0-x0);
-	    real r2 = sqrt(x0);
-	    real ang1 = 2*M_PI*rng.f();
-	    real ang2 = 2*M_PI*rng.f();
-	    return make_real4(r2*cos(ang2),r1*sin(ang1),r1*cos(ang1),r2*sin(ang2));
-	  };
-	  std::generate(orientations.begin(), orientations.end(),randomQuaternion);
-	} else {
-	  System::log<System::ERROR>("[initOrientations] The initialization option %s is not valid", option.c_str());
-	  System::log<System::ERROR>("[initOrientations] Valid options: aligned and random");
-	  throw std::runtime_error("Invalid initialization option");
-	}
-	  return orientations;
-      }
+      return orientations;
     }
   }
 }
