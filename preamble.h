@@ -25,7 +25,8 @@
 // will be available along the rest exposed by ParticleData (like pos, vel, force,...)
 // meaning that if a ParticleData instance called "pd" is available, you may do:
 // auto custom = pd->getCustom(access::gpu, access::read);
-#define EXTRA_PARTICLE_PROPERTIES ((Custom, custom, real4))((MyExtraProperty, myExtraProperty, real))
+#define EXTRA_PARTICLE_PROPERTIES ((Torque, torque, real4)) ((Dir, dir, real4)) \
+  ((Custom, custom, real4))((MyExtraProperty, myExtraProperty, real))
 
 //Append to this list any extra parameter that you need included in the ParameterUpdatable interface
 //Use the following syntax:
